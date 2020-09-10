@@ -1,0 +1,702 @@
+---
+title: "CorrelAid Challenge"
+author: "Submission LC MannheimXHeidelberg"
+date: ""
+output: 
+   html_document:
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = TRUE, echo = FALSE, error = FALSE, warning = FALSE, message = FALSE)
+```
+
+## Introduction </br>
+Hi there! It's the LC challenge team from Mannheim and Heidelberg. Yes, you heard correctly. Two oh so different cities, connected not only by a river but more importantly - by the work of CorrelAid. </br>
+
+![](Slide1.png)
+
+</br>As both Mannheim and Heidelberg are so different, we use this cool opportunity to explore the available local data with a focus on our home cities. And, given the uncertain present and future of, well, the world, we chose to take a closer look at how we can use this data to understand differences and thereby build a better future. 
+
+![](Slide2.png)
+
+</br>Our team did not consist of any Python users, which is why we moved our work to R (no worries if that means we cannot win anything, we just wanted to participate in some way!). Using the new datenguideR package, we focus following analyses on the topics of: </br>
+
+C - onsumption </br>
+O - bligation </br>
+R - ubbish </br>
+R - ents </br>
+E - ntrepreneurship </br>
+L - ife </br>
+</br>
+A - vailability </br>
+I - infrastructure </br>
+D - evelopment </br>
+
+Enough talking, let's dive right into the first topic! </br>
+
+
+![](Slide3.png)
+
+```{r, include=F}
+## clear working memory
+rm(list = ls())
+
+## install packages if not installed
+p_needed <-
+  c(
+    "dplyr",
+    "ggplot2",
+    "ggthemes",
+    "ggrepel",
+    "viridis",
+    "hrbrthemes",
+    "plotly"
+  )
+
+# Compare needed and installed packages
+packages <- rownames(installed.packages())
+p_to_install <- p_needed[!(p_needed %in% packages)]
+
+# If a package is not installed yet, install it
+if (length(p_to_install) > 0) {
+  install.packages(p_to_install)
+}
+
+# Load all the packages in the environment
+sapply(p_needed, require, character.only = TRUE)
+
+#devtools::install_github("CorrelAid/datenguideR")
+library(datenguideR)
+
+
+mannheim <- "08222"
+heidelberg <- "08221"
+
+
+```
+
+
+```{r, include=T}
+# datenguideR::dg_regions %>%
+#   dplyr::filter(level == "nuts3")  %>% filter(name=="Mannheim" | name=="Heidelberg") %>% 
+#   knitr::kable() 
+
+df <- datenguideR::dg_descriptions
+
+```
+
+Beginning with consumption, we first compare the cities' gross domestic products per worker and inhabitant.
+
+ 
+```{r}
+# Heidelberg
+df_C1_H<- dg_call(region_id = heidelberg,
+               stat_name = "BIP803") # BIP per worker
+
+df_C2_H<- dg_call(region_id = heidelberg,
+               stat_name = "AI1703") # BIP per inhabitant
+
+# Mannheim
+df_C1_M<- dg_call(region_id = mannheim,
+               stat_name = "BIP803") # BIP per worker
+
+df_C2_M<- dg_call(region_id = mannheim,
+               stat_name = "AI1703") # BIP per inhabitant
+
+# Merge data to visualise
+df_C1<-rbind(df_C1_M, df_C1_H)
+df_C2<-rbind(df_C2_M, df_C2_H)
+
+# Create a gender variable
+df_C1<- df_C1 %>% mutate(GDP="GDP per worker")
+df_C2<- df_C2 %>% mutate(GDP="GDP per inhabitant")
+
+# Merge again
+df_C<-rbind(df_C1, df_C2)
+
+df_C<- df_C %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+
+```
+ 
+
+
+```{r}
+p <- as.data.frame(df_C) %>% ggplot(aes(x=year, y=value, fill=Area, color=Area, text=value)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "GDP",
+       title="Gross Domestic Product (Consumption)")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2000, 2018, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+p<- p+# annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  facet_wrap(~GDP)
+
+  ggplotly(p, tooltip="text", width = 1000)
+```
+
+
+![](Slide4.png)
+
+Building a better future is about inclusion and sustainable growth. This is why we took a closer look at how many elderly people are in need and receive basic security by the state. With interesting gender differences:
+
+```{r}
+# Basic insurance (obligation 1)
+
+# Heidelberg
+df_O1_H<- dg_call(region_id = heidelberg,
+               stat_name = "AI2203") # Grundsicherungsquote Männer ab Altersgrenze
+
+df_O2_H<- dg_call(region_id = heidelberg,
+               stat_name = "AI2204") # # Grundsicherungsquote Frauen ab Altersgrenze
+
+# Mannheim
+df_O1_M<- dg_call(region_id = mannheim,
+               stat_name = "AI2203") # Grundsicherungsquote Männer ab Altersgrenze
+
+df_O2_M<- dg_call(region_id = mannheim,
+               stat_name = "AI2204") # Grundsicherungsquote Frauen ab Altersgrenze
+
+# Merge data to visualise
+df_O1<-rbind(df_O1_M, df_O1_H)
+df_O2<-rbind(df_O2_M, df_O2_H)
+
+# Create a gender variable
+df_O1<- df_O1 %>% mutate(Gender="Males")
+df_O2<- df_O2 %>% mutate(Gender="Females")
+
+# Merge again
+df_O<-rbind(df_O1, df_O2)
+
+df_O<- df_O %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+```
+ 
+ 
+ 
+```{r}
+p <- as.data.frame(df_O) %>% ggplot(aes(x=year, y=value, fill=Area, color=Area, text=value)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Basic Security Rate",
+       title="Basic security rate for population above the age limit")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(1995, 2018, by = 1)) +
+     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+p<- p+# annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  facet_wrap(~Gender)
+
+  ggplotly(p, tooltip="text")
+```
+
+
+
+
+
+![](Slide5.png)
+
+A sustainable future goes hand in hand with reducing waste. But what about Mannheim and Heidelberg? Who wins the race on producing less waste? Let's have a look!
+
+```{r}
+r1 <- dg_call(region_id = heidelberg,
+               stat_name = "AEW010")
+r2 <- dg_call(region_id = mannheim,
+               stat_name = "AEW010")
+
+
+p1 <- dg_call(region_id = heidelberg,
+              stat_name = "BEVST6")
+p2 <- dg_call(region_id = mannheim,
+              stat_name = "BEVST6")
+
+p1$substat_name[is.na(p1$substat_name)] <- 0
+p2$substat_name[is.na(p2$substat_name)] <- 0
+p1 <- p1 %>% filter(substat_name==0) 
+p2 <- p2 %>% filter(substat_name==0) 
+
+rp1 <- r1 %>% left_join(p1, by = "year") %>% filter(year>2010)
+rp2 <- r2 %>% left_join(p2, by = "year") %>% filter(year>2010)
+rubbish <- rbind(rp1, rp2)
+
+rubbish <- rubbish %>% mutate(mean_trash_std_ton = value.x / value.y, mean_trash_std_kg = mean_trash_std_ton * 1000) %>% rename(City=name.x)
+
+
+
+```
+
+
+```{r}
+
+
+p <- as.data.frame(rubbish) %>% ggplot(aes(x=year, y=mean_trash_std_ton, fill=City, color=City, text=mean_trash_std_ton)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Trash",
+       title="Rubbish")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2011, 2018, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+
+```
+
+
+
+![](Slide6.png)
+
+When talking about building a better tomorrow, it is inevitable to touch on the topic of rents. So let's turn the gaze to the monthly rent per m² of a 30m² flat. Which city is cheaper? And how did prices develop over time? 
+
+```{r}
+
+rents <- read.csv("rents.csv", sep=",")
+rents$price <- as.numeric(rents$price)
+rents <- rents %>% rename(year=ï..year)
+
+```
+
+
+```{r}
+
+p <- as.data.frame(rents) %>% ggplot(aes(x=year, y=price, fill=city, color=city, text=price)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Rent per m² in €",
+       title="Rents (based on rents for 30m² flats)")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2011, 2019, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+
+
+```
+
+
+
+![](Slide7.png)
+
+An indicator of a favourable economic environment might also lie in successful entrepreneurship. How many people take the plunge and register their own business? So far, it seemed like Heidelberg might be ahead, but these results truly suprised us. But see for yourself!
+
+
+```{r}
+# Gewerbeanmeldungen
+
+e1 <- dg_call(region_id = heidelberg,
+              stat_name = "AI0401")
+e2 <- dg_call(region_id = mannheim,
+              stat_name = "AI0401")
+
+startups <- rbind(e1, e2)
+
+```
+
+
+
+```{r}
+
+
+p <- as.data.frame(startups) %>% ggplot(aes(x=year, y=value, fill=name, color=name, text=value)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Business registrations (per 10,000 inhabitants)",
+       title="Business registrations")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2008, 2019, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+
+```
+
+
+
+![](Slide8.png)
+
+We talked about many aspects, but left out one of the seemingly most important factors so far: Life. How many people are born, how many die, and to what extent do these factors balance out over time?
+
+```{r}
+#visualise life
+
+# Heidelberg
+df_L1_H<- dg_call(region_id = heidelberg,
+               stat_name = "AI0211") # Geburten-/Gestorbenenüberschuss
+
+df_L1_M<- dg_call(region_id = mannheim,
+               stat_name = "AI0211") # Geburten-/Gestorbenenüberschuss
+
+# Merge data to visualise
+df_L1<-rbind(df_L1_H, df_L1_M)
+
+```
+
+
+```{r}
+df_L1<- df_L1 %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+
+df_L1<- df_L1 %>% mutate(Ratio = value)
+
+ggplot(df_L1,aes(x=Ratio))+
+  geom_histogram(col="darkmagenta", 
+                 aes(fill=..count..), bins=25)+  
+  scale_fill_gradient("Frequency", low="lightblue", high="pink")+
+  facet_grid(~Area)+
+  theme_tufte() + labs(x="Surplus of Birth over Death per 10 000 Inhabitants", y="Value Frequency", title = "Does the natural balance of birth-to-death hold in your region?")+
+  geom_vline(data=df_L1, aes(xintercept=0),
+             linetype="dashed") 
+```
+
+
+
+```{r}
+p <- as.data.frame(df_L1) %>%
+  ggplot( aes(x=year, y=value, fill=Area, color=Area, text=value)) +
+    geom_area(  ) +
+  scale_x_continuous(breaks=seq(1995, 2018, by = 1)) +
+    scale_fill_viridis(discrete = T, option = "E", alpha = 0.4) +
+    scale_color_viridis(discrete = T, alpha=0.4) +
+  #  ggtitle("Does the natural balance of birth-to-death hold in your region?", subtitle = "Values above zero indicate the prevalence of new-born over dead and vice versa") +
+    theme_tufte()  + theme(
+      legend.position="none",
+      panel.spacing = unit(0, "lines"),
+      strip.text.x = element_text(size = 8),
+      plot.title = element_text(size=13)
+    )+
+   labs(x="Surplus of Birth over Death per 10 000 Inhabitants", y="Value", title ="Does the natural balance of birth-to-death hold in your region?", subtitle = "Values above zero indicate the prevalence of new-born over dead and vice versa" ) +
+geom_hline(aes(yintercept = 0), linetype="dotted", size=0.2)+
+theme(axis.line = element_line(colour = 'black', size = 1))
+   
+p<- p+# annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  facet_wrap(~Area)
+  
+
+  ggplotly(p, tooltip="text", width = 1000)
+
+# htmlwidgets::saveWidget(p, "life.html")
+```
+
+
+![](Slide9.png)
+
+
+Our vision of a better future also includes financial sustainability. But how does that play out in real life? How much (disposable) income does the population of our cities have?
+
+```{r}
+
+
+
+# Availability
+
+# Heidelberg
+df_A1_H<- dg_call(region_id = heidelberg,
+               stat_name = "EKM014") # Avail. Household Income per Inhabitant
+
+df_A2_H<- dg_call(region_id = heidelberg,
+               stat_name = "EKM006") # Disposable Household Income
+
+# Mannheim
+df_A1_M<- dg_call(region_id = mannheim,
+               stat_name = "EKM014") # Avail. Household Income per Inhabitant
+
+df_A2_M<- dg_call(region_id = mannheim,
+               stat_name = "EKM006") # Disposable Household Income
+
+
+# Merge data to visualise
+df_A1<-rbind(df_A1_H, df_A1_M)
+df_A2<-rbind(df_A2_H, df_A2_M)
+
+```
+
+
+
+```{r}
+# Visualise Avail. Household Income per Inhabitant
+
+df_A1<- df_A1 %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+
+#p1<-
+  
+  ggplot(df_A1, aes(x=year, y=value, shape=Area, color =year)) +
+  geom_point( size = 3, show.legend = T, alpha = .4) +
+  theme_tufte() + 
+  guides(color = "none") + # do not show legend for color
+  labs(x="Year", y= "Available Household Income per Inhabitant (in euro)",
+       title="Annual available income for households")+
+ geom_line() +
+    scale_x_continuous(breaks=seq(1995, 2018, by = 1)) +
+    scale_y_continuous(breaks=seq(15000, 30000, by = 1000)) +
+  
+  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+
+   geom_text_repel(
+    data = subset(df_A1, year == "1995" | year == "2018" ),
+    aes(label = value),
+    size = 2, color = "black",
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.3, "lines")
+  )
+
+
+```
+
+```{r}
+# visualise Disposable Household Income
+
+df_A2<- df_A2 %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+
+p <- as.data.frame(df_A2) %>% ggplot(aes(x=year, y=value, color=Area, text=value, group=Area)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Disposable Household Income (in euro)",
+       title="Annual disposable income of households")+
+
+    scale_x_continuous(breaks=seq(2000, 2018, by = 1)) +
+    scale_y_continuous(breaks=seq(2500000,6500000, by = 300000)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+  ggplotly(p, tooltip="text")
+
+```
+
+
+
+![](Slide10.png)
+
+```{r}
+
+# Reinpendeln
+
+i1 <- dg_call(region_id = heidelberg,
+              stat_name = "PEN071")
+i2 <- dg_call(region_id = mannheim,
+              stat_name = "PEN071")
+
+infra <- rbind(i1, i2)
+
+
+ep1 <- i1 %>% left_join(p1, by = "year") %>% filter(year>2010)
+ep2 <- i2 %>% left_join(p2, by = "year") %>% filter(year>2010)
+ep <- rbind(ep1, ep2)
+ep <- ep %>% mutate(prop=(value.x/value.y)*100, city=name.x)
+
+p <- as.data.frame(ep) %>% ggplot(aes(x=year, y=prop, fill=city, color=city, text=prop)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Commuters to city (in percent of total population)",
+       title="Just here to work?")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2011, 2019, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+
+```
+```{r}
+
+# Rauspendeln
+
+i1 <- dg_call(region_id = heidelberg,
+              stat_name = "PEN072")
+i2 <- dg_call(region_id = mannheim,
+              stat_name = "PEN072")
+
+infra <- rbind(i1, i2)
+
+
+ep1 <- i1 %>% left_join(p1, by = "year") %>% filter(year>2010)
+ep2 <- i2 %>% left_join(p2, by = "year") %>% filter(year>2010)
+ep <- rbind(ep1, ep2)
+ep <- ep %>% mutate(prop=(value.x/value.y)*100, city=name.x)
+
+p <- as.data.frame(ep) %>% ggplot(aes(x=year, y=prop, fill=city, color=city, text=prop)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Commuters out of city (in percent of total population)",
+       title="Leaving for work!")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2011, 2019, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+
+```
+
+
+```{r}
+
+# Pendlersaldo
+
+i1 <- dg_call(region_id = heidelberg,
+              stat_name = "PEN079")
+i2 <- dg_call(region_id = mannheim,
+              stat_name = "PEN079")
+
+infra <- rbind(i1, i2)
+
+
+ep1 <- i1 %>% left_join(p1, by = "year") %>% filter(year>2010)
+ep2 <- i2 %>% left_join(p2, by = "year") %>% filter(year>2010)
+ep <- rbind(ep1, ep2)
+ep <- ep %>% mutate(prop=(value.x/value.y)*100, city=name.x)
+
+p <- as.data.frame(ep) %>% ggplot(aes(x=year, y=prop, fill=city, color=city, text=prop)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+      scale_fill_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Commuter balance (in percent of total population)",
+       title="Do more people commute to the city or leave for work?")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(2011, 2019, by = 1)) +
+#     scale_y_continuous(breaks=seq(2, 7, by = 0.2)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+# p<- p+ annotate("text", x = c(1999,2000), y = c(-20,20), label = c("More people were born", "More people died")) +  
+  # facet_wrap(~mean_trash_std_ton)
+
+  ggplotly(p, tooltip="text")
+```
+
+
+
+![](Slide11.png)
+
+```{r, include=F}
+dg_search("avail") %>% 
+  dplyr::select(stat_name, dplyr::contains("_en"))
+
+```
+
+Last but not least: How did the cities populations develop over time? Do more and more people decide to move to our LC's hometowns - or are population sizes shrinking?
+
+
+```{r}
+# Population Development
+
+# Heidelberg
+df_D1_H<- dg_call(region_id = heidelberg,
+               stat_name = "AI0202") # Heidelberg
+
+# Mannheim
+df_D1_M<- dg_call(region_id = mannheim,
+               stat_name = "AI0202") # Mannheim
+
+# Merge data to visualise
+df_D1<-rbind(df_D1_M, df_D1_H)
+```
+
+
+```{r}
+# visualise Disposable Household Income
+
+df_D1<- df_D1 %>% mutate(Area=ifelse(id==heidelberg, "Heidelberg", "Mannheim") )
+
+p <- as.data.frame(df_D1) %>% ggplot(aes(x=year, y=value, color=Area, text=value, group=Area)) +
+  geom_point(size = 3, alpha = .4) +
+  theme_tufte() + 
+     theme(legend.position="bottom") +
+#  guides(color = "none") + # do not show legend for color
+    scale_color_viridis(discrete = T, option = "E") +
+  labs(x="Year", y= "Population development (in percent)",
+       title="Annual population development per 10 000 inhabitants")+ # what happened in 2005?
+
+    scale_x_continuous(breaks=seq(1995, 2018, by = 1)) +
+    scale_y_continuous(breaks=seq(-50,255, by = 10)) +
+  
+#  scale_color_gradient(low = "#0091ff", high = "#f0650e") +
+ geom_line() 
+
+  ggplotly(p, tooltip="text")
+```
+
+
+ 
+## So what?
+
+We have reached the end of our short analyses, so what have we learned? Mannheim and Heidelberg both have strengths and weaknesses in the building blocks of a sustainable future. But in working together, using data and initiating change we can contribute to the construction of a better tomorrow.
+
+![](Slide12.png)
+
+And this is why we believe in CorrelAid. All of us can work together and contribute to the change many of us wish for. Enough from us, now it's your turn! Use the package and explore your region!
+
+Best </br>
+Your LC Challenge team MannheimXHeidelberg
+
+![](Slide13.png)
+

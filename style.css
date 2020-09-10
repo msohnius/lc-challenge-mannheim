@@ -1,0 +1,19 @@
+/* Whole document: */
+body{
+  font-family: Accolade;
+  font-size: 13pt;
+  text-align: justify;
+}
+/* Headers */
+h1{
+  font-size: 20pt;
+  text-align: justify;
+}
+h2{
+  font-size: 18pt;
+  text-align: justify;
+}
+h3{
+  font-size: 16pt;
+  text-align: justify;
+}
