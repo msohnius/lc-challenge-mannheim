@@ -30,7 +30,7 @@ E - ntrepreneurship </br>
 L - ife </br>
 </br>
 A - vailability </br>
-I - infrastructure </br>
+I - nfrastructure </br>
 D - evelopment </br>
 
 Enough talking, let's dive right into the first topic! </br>
